@@ -22,14 +22,18 @@ export default function AdminSettings() {
   const form = useForm<WalletSettingsFormValues>({
     resolver: zodResolver(walletSettingsSchema),
     defaultValues: {
-      TRC20: walletAddresses.TRC20,
-      BEP20: walletAddresses.BEP20,
+      TRC20: walletAddresses.TRC20 || "",
+      BEP20: walletAddresses.BEP20 || "",
     },
   });
 
   const onSubmit = async (values: WalletSettingsFormValues) => {
     try {
-      await updateWalletAddresses(values);
+      // Ensure both fields are required when updating
+      await updateWalletAddresses({
+        TRC20: values.TRC20,
+        BEP20: values.BEP20,
+      });
     } catch (error) {
       console.error("Error updating wallet addresses:", error);
       // Error is handled in AdminContext
