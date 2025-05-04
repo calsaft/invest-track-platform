@@ -58,7 +58,7 @@ const mockTransactions: Transaction[] = [
 ];
 
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, updateUserBalance, addReferralCommission, users } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -150,18 +150,46 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       if (!user) throw new Error("You must be logged in");
       if (user.role !== "admin") throw new Error("Unauthorized");
       
+      // Find the transaction
+      const transaction = transactions.find(t => t.id === transactionId);
+      if (!transaction) throw new Error("Transaction not found");
+      
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
       
+      // Process transaction based on status
+      if (status === "approved") {
+        // Update user balance for approved deposits
+        if (transaction.type === "deposit") {
+          await updateUserBalance(transaction.userId, transaction.amount);
+          
+          // Check if this user was referred by someone
+          const depositUser = users.find(u => u.id === transaction.userId);
+          if (depositUser?.referredBy) {
+            // Add referral commission (20% of the deposit)
+            await addReferralCommission(
+              depositUser.referredBy, 
+              transaction.amount, 
+              transaction.userId
+            );
+          }
+        } 
+        // Deduct balance for approved withdrawals
+        else if (transaction.type === "withdrawal") {
+          await updateUserBalance(transaction.userId, -transaction.amount);
+        }
+      }
+      
+      // Update transaction status
       setTransactions(prev => 
-        prev.map(transaction => 
-          transaction.id === transactionId 
+        prev.map(t => 
+          t.id === transactionId 
             ? { 
-                ...transaction, 
+                ...t, 
                 status, 
                 updatedAt: new Date().toISOString() 
               } 
-            : transaction
+            : t
         )
       );
       

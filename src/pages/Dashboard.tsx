@@ -5,18 +5,29 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTransactions } from "@/contexts/TransactionContext";
+import { useInvestments } from "@/contexts/InvestmentContext";
 import TransactionBadge from "@/components/TransactionBadge";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, TrendingUp, Users } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { transactions } = useTransactions();
+  const { investments } = useInvestments();
   
   const userTransactions = useMemo(() => {
     if (!user) return [];
     return transactions.filter(t => t.userId === user.id);
   }, [user, transactions]);
+  
+  const userInvestments = useMemo(() => {
+    if (!user) return [];
+    return investments.filter(i => i.userId === user.id);
+  }, [user, investments]);
+  
+  const activeInvestments = useMemo(() => {
+    return userInvestments.filter(i => i.status === "active");
+  }, [userInvestments]);
   
   const pendingTransactions = useMemo(() => {
     return userTransactions.filter(t => t.status === "pending");
@@ -27,6 +38,15 @@ export default function Dashboard() {
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     ).slice(0, 5);
   }, [userTransactions]);
+
+  // Calculate total invested and investment value
+  const totalInvested = useMemo(() => {
+    return userInvestments.reduce((sum, inv) => sum + inv.amount, 0);
+  }, [userInvestments]);
+  
+  const currentInvestmentValue = useMemo(() => {
+    return userInvestments.reduce((sum, inv) => sum + inv.currentValue, 0);
+  }, [userInvestments]);
 
   // Generate chart data
   const chartData = useMemo(() => {
@@ -81,7 +101,7 @@ export default function Dashboard() {
     <div className="container mx-auto px-4 py-8 mb-16 md:mb-0">
       <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -110,14 +130,17 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Pending Transactions
+              Active Investments
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pendingTransactions.length}</div>
+            <div className="text-2xl font-bold">{activeInvestments.length}</div>
             <div className="mt-4">
-              <Link to="/transactions">
-                <Button size="sm" variant="outline">View All Transactions</Button>
+              <Link to="/plans">
+                <Button size="sm" variant="outline" className="flex items-center gap-1">
+                  <TrendingUp className="h-4 w-4" />
+                  View Plans
+                </Button>
               </Link>
             </div>
           </CardContent>
@@ -126,18 +149,40 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Member Since
+              Investment Value
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {new Date(user.createdAt).toLocaleDateString()}
+              ${currentInvestmentValue.toFixed(2)}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              From ${totalInvested.toFixed(2)} invested
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Referral Earnings
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${user.referralBonus?.toFixed(2) || "0.00"}</div>
+            <div className="mt-4">
+              <Link to="/referral">
+                <Button size="sm" variant="outline" className="flex items-center gap-1">
+                  <Users className="h-4 w-4" />
+                  Refer Friends
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="lg:col-span-2">
           <Card className="h-full">
             <CardHeader>
@@ -211,6 +256,79 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+      </div>
+      
+      {/* Active Investments Section */}
+      <div>
+        <h2 className="text-2xl font-bold mb-4">Active Investments</h2>
+        {activeInvestments.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {activeInvestments.map((investment) => {
+              // Calculate progress percentage
+              const startDate = new Date(investment.startDate);
+              const endDate = new Date(investment.endDate);
+              const now = new Date();
+              
+              const totalDuration = endDate.getTime() - startDate.getTime();
+              const elapsed = now.getTime() - startDate.getTime();
+              const progress = Math.min(100, (elapsed / totalDuration) * 100);
+              
+              // Calculate profit
+              const profit = investment.currentValue - investment.amount;
+              
+              return (
+                <Card key={investment.id}>
+                  <CardHeader>
+                    <CardTitle>Investment #{investment.id.split('-')[1]}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <div className="text-muted-foreground">Amount Invested</div>
+                      <div className="font-bold">${investment.amount}</div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <div className="text-muted-foreground">Current Value</div>
+                      <div className="font-bold text-success">${investment.currentValue.toFixed(2)}</div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <div className="text-muted-foreground">Profit</div>
+                      <div className="font-bold text-success">+${profit.toFixed(2)}</div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Progress</span>
+                        <span>{Math.round(progress)}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-sm">
+                      <div>{new Date(investment.startDate).toLocaleDateString()}</div>
+                      <div>{new Date(investment.endDate).toLocaleDateString()}</div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="py-8 text-center">
+              <p className="text-muted-foreground mb-4">You don't have any active investments</p>
+              <Link to="/plans">
+                <Button>View Investment Plans</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
