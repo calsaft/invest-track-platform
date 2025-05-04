@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useTransactions } from "@/contexts/TransactionContext";
 import { useAdmin } from "@/contexts/AdminContext";
 import CopyButton from "@/components/CopyButton";
+import { Upload, Image } from "lucide-react";
+import { toast } from "sonner";
 
 const depositSchema = z.object({
   amount: z.string().min(1, "Amount is required").refine(
@@ -18,6 +20,7 @@ const depositSchema = z.object({
     { message: "Amount must be a positive number" }
   ),
   currency: z.enum(["TRC20", "BEP20"]),
+  screenshot: z.any().optional(),
 });
 
 type DepositFormValues = z.infer<typeof depositSchema>;
@@ -25,16 +28,39 @@ type DepositFormValues = z.infer<typeof depositSchema>;
 export default function DepositPage() {
   const { createDeposit } = useTransactions();
   const { walletAddresses } = useAdmin();
+  const [screenshot, setScreenshot] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
   const form = useForm<DepositFormValues>({
     resolver: zodResolver(depositSchema),
     defaultValues: {
       amount: "",
       currency: "TRC20",
+      screenshot: null,
     },
   });
 
   const selectedCurrency = form.watch("currency");
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast.error("File is too large. Maximum size is 5MB.");
+        return;
+      }
+      
+      const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error("Only JPG and PNG files are allowed.");
+        return;
+      }
+      
+      setScreenshot(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
 
   const onSubmit = async (values: DepositFormValues) => {
     const walletAddress = values.currency === "TRC20" 
@@ -45,9 +71,12 @@ export default function DepositPage() {
       await createDeposit(
         Number(values.amount),
         walletAddress,
-        values.currency
+        values.currency,
+        screenshot
       );
       form.reset();
+      setScreenshot(null);
+      setPreviewUrl(null);
     } catch (error) {
       console.error("Deposit error:", error);
       // Error is handled in TransactionContext
@@ -113,6 +142,54 @@ export default function DepositPage() {
                   )}
                 />
 
+                <div className="space-y-2">
+                  <FormLabel>Upload Payment Proof</FormLabel>
+                  <div className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-4 text-center">
+                    <label htmlFor="screenshot-upload" className="cursor-pointer">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        {previewUrl ? (
+                          <div className="relative w-full">
+                            <img 
+                              src={previewUrl} 
+                              alt="Payment proof" 
+                              className="max-h-48 mx-auto rounded-md" 
+                            />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="absolute top-2 right-2"
+                              onClick={() => {
+                                setScreenshot(null);
+                                setPreviewUrl(null);
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            <Upload className="h-10 w-10 text-muted-foreground" />
+                            <div className="text-sm text-muted-foreground">
+                              <span className="font-medium text-primary">Click to upload</span> or drag and drop
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              PNG or JPG (max 5MB)
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </label>
+                    <input
+                      id="screenshot-upload"
+                      type="file"
+                      accept="image/png, image/jpeg, image/jpg"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </div>
+                </div>
+
                 <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                   {form.formState.isSubmitting ? (
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -154,7 +231,14 @@ export default function DepositPage() {
             </div>
             
             <div className="space-y-2">
-              <div className="font-medium">Step 3: Wait for Confirmation</div>
+              <div className="font-medium">Step 3: Take Screenshot</div>
+              <div className="text-sm text-muted-foreground">
+                Take a screenshot of your successful transaction and upload it as proof of payment.
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="font-medium">Step 4: Wait for Confirmation</div>
               <div className="text-sm text-muted-foreground">
                 Your deposit will be credited to your account once it's confirmed on the blockchain and approved by our team. This process typically takes 10-30 minutes.
               </div>

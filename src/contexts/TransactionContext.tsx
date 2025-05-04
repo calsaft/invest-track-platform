@@ -14,13 +14,14 @@ export type Transaction = {
   details?: {
     wallet?: string;
     currency?: string;
+    screenshotUrl?: string;
   };
 };
 
 type TransactionContextType = {
   transactions: Transaction[];
   isLoading: boolean;
-  createDeposit: (amount: number, wallet: string, currency: string) => Promise<void>;
+  createDeposit: (amount: number, wallet: string, currency: string, screenshot?: File | null) => Promise<void>;
   createWithdrawal: (amount: number, wallet: string, currency: string) => Promise<void>;
   updateTransaction: (transactionId: string, status: "approved" | "rejected") => Promise<void>;
 };
@@ -75,13 +76,31 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     localStorage.setItem("investmentTransactions", JSON.stringify(transactions));
   }, [transactions]);
 
-  const createDeposit = async (amount: number, wallet: string, currency: string) => {
+  // Helper function to convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const createDeposit = async (amount: number, wallet: string, currency: string, screenshot: File | null = null) => {
     setIsLoading(true);
     try {
       if (!user) throw new Error("You must be logged in");
       
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
+      
+      // Process screenshot if provided
+      let screenshotUrl: string | undefined = undefined;
+      if (screenshot) {
+        // In a real app, we would upload the file to storage
+        // For now, we'll convert to base64 and store it
+        screenshotUrl = await fileToBase64(screenshot);
+      }
       
       const newTransaction: Transaction = {
         id: String(transactions.length + 1),
@@ -94,6 +113,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         details: {
           wallet,
           currency,
+          screenshotUrl
         },
       };
       

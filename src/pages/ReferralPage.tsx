@@ -43,7 +43,7 @@ export default function ReferralPage() {
                     readOnly
                     className="flex-1"
                   />
-                  <CopyButton value={referralLink} />
+                  <CopyButton text={referralLink} />
                 </div>
               </div>
               

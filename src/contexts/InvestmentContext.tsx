@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "./AuthContext";
@@ -12,8 +11,8 @@ export type Investment = {
   duration: number;
   startDate: string;
   endDate: string;
-  status: "active" | "completed";
   dailyReturn: number;
+  status: "active" | "completed" | string;
   currentValue: number;
 };
 

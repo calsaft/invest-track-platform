@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -87,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("investmentUsers", JSON.stringify(users));
   }, [users]);
 
-  const updateUserBalance = async (userId: string, amount: number) => {
+  const updateUserBalance = async (userId: string, amount: number): Promise<void> => {
     setIsLoading(true);
     try {
       const updatedUsers = users.map(u => 
@@ -105,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem("investmentUser", JSON.stringify(updatedUser));
       }
       
-      return true;
+      return;
     } catch (error: any) {
       toast.error(error.message || "Failed to update balance");
       throw error;
@@ -114,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addReferralCommission = async (referrerId: string, amount: number, userId: string) => {
+  const addReferralCommission = async (referrerId: string, amount: number, userId: string): Promise<void> => {
     setIsLoading(true);
     try {
       // Find the referrer
@@ -164,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       toast.success(`Referral commission of $${commission} added`);
       
-      return true;
+      return;
     } catch (error: any) {
       toast.error(error.message || "Failed to add referral commission");
       throw error;
