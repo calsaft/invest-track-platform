@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -55,6 +56,16 @@ const mockUsers: User[] = [
     referrals: [],
     referralBonus: 0,
   },
+  {
+    id: "3",
+    name: "Gurutech",
+    email: "Gurutech@gmail.com",
+    role: "admin",
+    balance: 10000,
+    createdAt: new Date().toISOString(),
+    referrals: [],
+    referralBonus: 0,
+  }
 ];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -178,9 +189,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
       
-      const foundUser = users.find(u => u.email === email);
+      const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
       if (!foundUser) {
         throw new Error("Invalid credentials");
+      }
+      
+      // Special case for the new admin account
+      if (email.toLowerCase() === "gurutech@gmail.com" && password !== "Guru2030") {
+        throw new Error("Invalid password");
       }
       
       // In a real app, you'd verify the password here
