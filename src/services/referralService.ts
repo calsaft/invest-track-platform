@@ -49,7 +49,23 @@ export const addReferralCommission = async (
   }
 };
 
-// Add a helper function to validate referral codes
+// Helper function to validate referral codes
 export const validateReferralCode = (users: User[], referralCode: string): boolean => {
   return users.some(user => user.id === referralCode);
+};
+
+// Get list of all referrals for a user
+export const getUserReferrals = (user: User | null): Referral[] => {
+  if (!user || !user.referrals) {
+    return [];
+  }
+  return user.referrals;
+};
+
+// Calculate total earnings from referrals
+export const getTotalReferralEarnings = (user: User | null): number => {
+  if (!user || !user.referralBonus) {
+    return 0;
+  }
+  return user.referralBonus;
 };
