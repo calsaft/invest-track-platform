@@ -22,6 +22,7 @@ export type Investment = {
   status: "active" | "completed" | "cancelled";
   roiEarned: number;
   createdAt: string;
+  currentValue: number; // Added this property to fix the build errors
 };
 
 type InvestmentContextType = {
@@ -78,6 +79,7 @@ const mockInvestments: Investment[] = [
     status: "completed",
     roiEarned: 25,
     createdAt: new Date().toISOString(),
+    currentValue: 525, // Added currentValue (initial amount + roiEarned)
   },
   {
     id: "2",
@@ -89,6 +91,7 @@ const mockInvestments: Investment[] = [
     status: "active",
     roiEarned: 0,
     createdAt: new Date().toISOString(),
+    currentValue: 2000, // Initial currentValue is the same as amount
   },
 ];
 
@@ -143,6 +146,7 @@ export function InvestmentProvider({ children }: { children: React.ReactNode }) 
         status: "active",
         roiEarned: 0,
         createdAt: new Date().toISOString(),
+        currentValue: amount, // Initialize currentValue with the investment amount
       };
       
       setInvestments([...investments, newInvestment]);
@@ -215,6 +219,53 @@ export function InvestmentProvider({ children }: { children: React.ReactNode }) 
     
     return roiEarned;
   };
+
+  // Add a function to calculate the current value of investments
+  const calculateInvestmentGrowth = () => {
+    const updatedInvestments = investments.map(investment => {
+      if (investment.status !== "active") return investment;
+      
+      const plan = plans.find(p => p.id === investment.planId);
+      if (!plan) return investment;
+      
+      // Calculate growth based on time elapsed
+      const startDate = new Date(investment.startDate);
+      const now = new Date();
+      const endDate = new Date(investment.endDate);
+      
+      const totalDuration = endDate.getTime() - startDate.getTime();
+      const elapsed = now.getTime() - startDate.getTime();
+      
+      if (elapsed > 0) {
+        const progressRatio = Math.min(1, elapsed / totalDuration);
+        const expectedProfit = investment.amount * plan.roi;
+        const currentProfit = expectedProfit * progressRatio;
+        const newCurrentValue = investment.amount + currentProfit;
+        
+        return {
+          ...investment,
+          currentValue: newCurrentValue
+        };
+      }
+      
+      return investment;
+    });
+    
+    if (JSON.stringify(updatedInvestments) !== JSON.stringify(investments)) {
+      setInvestments(updatedInvestments);
+    }
+  };
+  
+  // Update investment values periodically
+  useEffect(() => {
+    calculateInvestmentGrowth();
+    
+    const interval = setInterval(() => {
+      calculateInvestmentGrowth();
+    }, 60000); // Update every minute
+    
+    return () => clearInterval(interval);
+  }, [investments, plans]);
 
   return (
     <InvestmentContext.Provider 
