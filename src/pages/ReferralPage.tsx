@@ -11,12 +11,18 @@ import CopyButton from "@/components/CopyButton";
 export default function ReferralPage() {
   const { user } = useAuth();
   const [email, setEmail] = useState("");
+  
+  // Fix the referral link construction
   const baseUrl = window.location.origin;
   const referralLink = user ? `${baseUrl}/register?ref=${user.id}` : "";
   
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault();
     // In a real app, this would send an email invitation
+    if (!email) {
+      toast.error("Please enter an email address");
+      return;
+    }
     toast.success(`Invitation sent to ${email}`);
     setEmail("");
   };

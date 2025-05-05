@@ -9,6 +9,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { validateReferralCode } from "@/services/referralService";
 
 const registerSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -30,16 +31,22 @@ export default function RegisterPage() {
   const [referrerName, setReferrerName] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Extract referral code from URL if present
+  // Extract referral code from URL if present and validate it
   useEffect(() => {
     const ref = searchParams.get("ref");
     if (ref) {
-      setReferralCode(ref);
-      
-      // Find referrer's name to display
-      const referrer = users.find(user => user.id === ref);
-      if (referrer) {
-        setReferrerName(referrer.name);
+      // Validate the referral code
+      if (validateReferralCode(users, ref)) {
+        setReferralCode(ref);
+        
+        // Find referrer's name to display
+        const referrer = users.find(user => user.id === ref);
+        if (referrer) {
+          setReferrerName(referrer.name);
+        }
+      } else {
+        // Invalid referral code, but we'll still allow registration
+        console.warn("Invalid referral code:", ref);
       }
     }
   }, [searchParams, users]);

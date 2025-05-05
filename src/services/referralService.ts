@@ -48,3 +48,8 @@ export const addReferralCommission = async (
     throw error;
   }
 };
+
+// Add a helper function to validate referral codes
+export const validateReferralCode = (users: User[], referralCode: string): boolean => {
+  return users.some(user => user.id === referralCode);
+};
