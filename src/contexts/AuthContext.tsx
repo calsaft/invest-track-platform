@@ -1,24 +1,16 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
-
-export type Referral = {
-  id: string;
-  name?: string;
-  commission: number;
-};
-
-export type User = {
-  id: string;
-  name: string;
-  email: string;
-  role: "user" | "admin";
-  balance: number;
-  createdAt: string;
-  referrals?: Referral[];
-  referralBonus?: number;
-  referredBy?: string;
-};
+import { User } from "../types/auth";
+import { updateSessionExpiry, isSessionValid } from "../utils/sessionUtils";
+import { addReferralCommission } from "../services/referralService";
+import { 
+  updateUserBalance, 
+  findUserById, 
+  findUserByEmail,
+  createNewUser,
+  refreshUserData
+} from "../services/userService";
 
 type AuthContextType = {
   user: User | null;
@@ -69,9 +61,6 @@ const mockUsers: User[] = [
   }
 ];
 
-// Session expiry time (1 hour in milliseconds)
-const SESSION_EXPIRY = 60 * 60 * 1000; 
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>(mockUsers);
@@ -81,19 +70,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Check for saved user in localStorage and session expiry
     const savedUser = localStorage.getItem("investmentUser");
-    const sessionExpiry = localStorage.getItem("sessionExpiry");
     
-    if (savedUser && sessionExpiry) {
-      const expiryTime = parseInt(sessionExpiry, 10);
-      if (Date.now() < expiryTime) {
-        setUser(JSON.parse(savedUser));
-        // Extend session when user is active
-        updateSessionExpiry();
-      } else {
-        // Session expired, clear data
-        localStorage.removeItem("investmentUser");
-        localStorage.removeItem("sessionExpiry");
-      }
+    if (savedUser && isSessionValid()) {
+      setUser(JSON.parse(savedUser));
+      // Extend session when user is active
+      updateSessionExpiry();
+    } else {
+      // Session expired, clear data
+      localStorage.removeItem("investmentUser");
+      localStorage.removeItem("sessionExpiry");
     }
     
     // Check for saved users in localStorage
@@ -113,35 +98,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("investmentUsers", JSON.stringify(users));
   }, [users]);
   
-  // Set session expiry time (1 hour from now)
-  const updateSessionExpiry = () => {
-    const expiryTime = Date.now() + SESSION_EXPIRY;
-    localStorage.setItem("sessionExpiry", expiryTime.toString());
-  };
-  
   // Refresh user session
   const refreshUserSession = () => {
-    if (user) {
-      // Find the latest user data
-      const currentUser = users.find(u => u.id === user.id);
-      if (currentUser) {
-        setUser(currentUser);
-        localStorage.setItem("investmentUser", JSON.stringify(currentUser));
-      }
-      // Extend session
-      updateSessionExpiry();
+    const refreshedUser = refreshUserData(user, users);
+    if (refreshedUser) {
+      setUser(refreshedUser);
     }
   };
 
-  const updateUserBalance = async (userId: string, amount: number): Promise<void> => {
+  const handleUpdateUserBalance = async (userId: string, amount: number): Promise<void> => {
     setIsLoading(true);
     try {
-      const updatedUsers = users.map(u => 
-        u.id === userId 
-          ? { ...u, balance: Math.max(0, u.balance + amount) }
-          : u
-      );
-      
+      const updatedUsers = updateUserBalance(users, userId, amount);
       setUsers(updatedUsers);
       
       // Update current user if it's them
@@ -161,56 +129,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addReferralCommission = async (referrerId: string, amount: number, userId: string): Promise<void> => {
+  const handleAddReferralCommission = async (referrerId: string, amount: number, userId: string): Promise<void> => {
     setIsLoading(true);
     try {
-      // Find the referrer
-      const referrer = users.find(u => u.id === referrerId);
-      if (!referrer) throw new Error("Referrer not found");
-      
-      // Find the new user
-      const newUser = users.find(u => u.id === userId);
-      if (!newUser) throw new Error("User not found");
-      
-      // Calculate commission (20% of deposit)
-      const commission = amount * 0.2;
-      
-      // Update referrer's referrals and bonus
-      const updatedReferrals = [...(referrer.referrals || []), {
-        id: userId,
-        name: newUser.name,
-        commission,
-      }];
-      
-      const updatedReferralBonus = (referrer.referralBonus || 0) + commission;
-      
-      // Update referrer in users array
-      const updatedUsers = users.map(u => 
-        u.id === referrerId 
-          ? { ...u, 
-              referrals: updatedReferrals, 
-              referralBonus: updatedReferralBonus,
-              balance: u.balance + commission
-            }
-          : u
-      );
-      
+      const updatedUsers = await addReferralCommission(users, referrerId, amount, userId);
       setUsers(updatedUsers);
       
       // Update current user if it's the referrer
       if (user && user.id === referrerId) {
-        const updatedUser = { 
-          ...user, 
-          referrals: updatedReferrals, 
-          referralBonus: updatedReferralBonus,
-          balance: user.balance + commission
-        };
-        setUser(updatedUser);
-        localStorage.setItem("investmentUser", JSON.stringify(updatedUser));
-        updateSessionExpiry();
+        const updatedUser = updatedUsers.find(u => u.id === referrerId);
+        if (updatedUser) {
+          setUser(updatedUser);
+          localStorage.setItem("investmentUser", JSON.stringify(updatedUser));
+          updateSessionExpiry();
+        }
       }
-      
-      toast.success(`Referral commission of $${commission} added`);
       
       return;
     } catch (error: any) {
@@ -227,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
       
-      const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      const foundUser = findUserByEmail(users, email);
       if (!foundUser) {
         throw new Error("Invalid credentials");
       }
@@ -267,20 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("User already exists");
       }
       
-      // Generate a unique ID
-      const userId = `user-${Date.now()}`;
-      
-      const newUser: User = {
-        id: userId,
-        name,
-        email,
-        role: "user",
-        balance: 0,
-        createdAt: new Date().toISOString(),
-        referrals: [],
-        referralBonus: 0,
-        referredBy: referralCode,
-      };
+      const newUser = createNewUser(name, email, "user", referralCode);
       
       const updatedUsers = [...users, newUser];
       setUsers(updatedUsers);
@@ -312,7 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
       
-      const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      const foundUser = findUserByEmail(users, email);
       if (!foundUser) {
         throw new Error("Email not found");
       }
@@ -335,8 +255,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       register, 
       logout, 
       resetPassword, 
-      updateUserBalance,
-      addReferralCommission,
+      updateUserBalance: handleUpdateUserBalance,
+      addReferralCommission: handleAddReferralCommission,
       users,
       refreshUserSession
     }}>
