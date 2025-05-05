@@ -1,8 +1,6 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { useAuth } from "./AuthContext";
-import { User } from "../types/auth";
+import { useAuth, User } from "./AuthContext";
 
 type WalletAddresses = {
   TRC20: string;

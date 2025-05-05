@@ -82,8 +82,7 @@ export default function PlansPage() {
         return;
       }
       
-      // Fix here: only passing planId and amount, not duration
-      await createInvestment(plan.id, plan.amount);
+      await createInvestment(plan.id, plan.amount, plan.duration);
       toast.success("Investment successful!");
       navigate("/dashboard");
     } catch (error: any) {
