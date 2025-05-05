@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/form";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { toast } from "sonner";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -35,6 +34,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { login, resetPassword } = useAuth();
   const [isResetDialogOpen, setIsResetDialogOpen] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -52,16 +52,28 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (values: LoginFormValues) => {
+    if (isSubmitting) {
+      return; // Prevent duplicate submissions
+    }
+    
+    setIsSubmitting(true);
     try {
       await login(values.email, values.password);
       navigate("/dashboard");
     } catch (error) {
       console.error("Login error:", error);
       // Error is handled in the AuthContext
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const onResetPassword = async (values: ForgotPasswordFormValues) => {
+    if (isSubmitting) {
+      return; // Prevent duplicate submissions
+    }
+    
+    setIsSubmitting(true);
     try {
       await resetPassword(values.email);
       setIsResetDialogOpen(false);
@@ -69,6 +81,8 @@ export default function LoginPage() {
     } catch (error) {
       console.error("Password reset error:", error);
       // Error is handled in the AuthContext
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -138,8 +152,12 @@ export default function LoginPage() {
                           </FormItem>
                         )}
                       />
-                      <Button type="submit" className="w-full">
-                        Reset Password
+                      <Button type="submit" className="w-full" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        ) : (
+                          "Reset Password"
+                        )}
                       </Button>
                     </form>
                   </Form>
@@ -147,8 +165,8 @@ export default function LoginPage() {
               </Dialog>
             </div>
 
-            <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? (
+            <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || isSubmitting}>
+              {(form.formState.isSubmitting || isSubmitting) ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
               ) : (
                 "Sign In"
@@ -164,12 +182,6 @@ export default function LoginPage() {
               Sign up
             </Link>
           </p>
-        </div>
-        
-        <div className="text-xs text-center text-muted-foreground pt-4 border-t border-border">
-          <p>Demo credentials:</p>
-          <p>Admin: admin@example.com (no password needed)</p>
-          <p>User: user@example.com (no password needed)</p>
         </div>
       </div>
     </div>

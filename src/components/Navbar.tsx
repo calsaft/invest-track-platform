@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   Moon, 
   Sun, 
@@ -12,15 +12,32 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUserSession } = useAuth();
   const { theme, setTheme } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogoClick = (e: React.MouseEvent) => {
+    if (user) {
+      e.preventDefault();
+      refreshUserSession();
+      if (location.pathname !== '/dashboard') {
+        navigate('/dashboard');
+      }
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-md border-b border-border">
       <div className="container mx-auto px-4 flex justify-between items-center h-16">
         <div className="flex items-center gap-2">
-          <Link to="/" className="text-xl font-bold text-primary">InvestTrack</Link>
+          <Link 
+            to={user ? "/dashboard" : "/"} 
+            className="text-xl font-bold text-primary"
+            onClick={handleLogoClick}
+          >
+            InvestTrack
+          </Link>
         </div>
 
         <div className="flex items-center gap-4">
