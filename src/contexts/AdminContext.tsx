@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth, User } from "./AuthContext";
@@ -14,14 +15,33 @@ type AdminContextType = {
   createUser: (name: string, email: string, password: string) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
   updateWalletAddresses: (addresses: WalletAddresses) => Promise<void>;
-  syncUsers: () => void;
 };
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
+// Initial mock users from AuthContext
+const initialUsers: User[] = [
+  {
+    id: "1",
+    name: "Admin User",
+    email: "admin@example.com",
+    role: "admin",
+    balance: 10000,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "2",
+    name: "Test User",
+    email: "user@example.com",
+    role: "user",
+    balance: 1000,
+    createdAt: new Date().toISOString(),
+  },
+];
+
 export function AdminProvider({ children }: { children: React.ReactNode }) {
-  const { user, users: authUsers } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
+  const { user } = useAuth();
+  const [users, setUsers] = useState<User[]>(initialUsers);
   const [walletAddresses, setWalletAddresses] = useState<WalletAddresses>({
     TRC20: "TRC20DefaultAddress123456789",
     BEP20: "BEP20DefaultAddress123456789",
@@ -30,29 +50,26 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   // Load data from localStorage on mount
   useEffect(() => {
+    const savedUsers = localStorage.getItem("adminUsers");
     const savedAddresses = localStorage.getItem("walletAddresses");
+    
+    if (savedUsers) {
+      setUsers(JSON.parse(savedUsers));
+    }
     
     if (savedAddresses) {
       setWalletAddresses(JSON.parse(savedAddresses));
     }
-    
-    // Initially sync with auth users
-    setUsers(authUsers);
   }, []);
-
-  // Keep admin users in sync with auth users
-  useEffect(() => {
-    syncUsers();
-  }, [authUsers]);
 
   // Save data to localStorage on change
   useEffect(() => {
+    localStorage.setItem("adminUsers", JSON.stringify(users));
+  }, [users]);
+
+  useEffect(() => {
     localStorage.setItem("walletAddresses", JSON.stringify(walletAddresses));
   }, [walletAddresses]);
-
-  const syncUsers = () => {
-    setUsers(authUsers);
-  };
 
   const createUser = async (name: string, email: string, password: string) => {
     setIsLoading(true);
@@ -70,14 +87,12 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       
       const newUser: User = {
-        id: `user-${Date.now()}`,
+        id: String(users.length + 1),
         name,
         email,
         role: "user",
         balance: 0,
         createdAt: new Date().toISOString(),
-        referrals: [],
-        referralBonus: 0
       };
       
       setUsers([...users, newUser]);
@@ -144,8 +159,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         isLoading, 
         createUser, 
         deleteUser, 
-        updateWalletAddresses,
-        syncUsers
+        updateWalletAddresses 
       }}
     >
       {children}

@@ -30,7 +30,6 @@ type AuthContextType = {
   updateUserBalance: (userId: string, amount: number) => Promise<void>;
   addReferralCommission: (referrerId: string, amount: number, userId: string) => Promise<void>;
   users: User[];
-  refreshUserSession: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -69,31 +68,16 @@ const mockUsers: User[] = [
   }
 ];
 
-// Session expiry time (1 hour in milliseconds)
-const SESSION_EXPIRY = 60 * 60 * 1000; 
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Check for saved user in localStorage and session expiry
+    // Check for saved user in localStorage
     const savedUser = localStorage.getItem("investmentUser");
-    const sessionExpiry = localStorage.getItem("sessionExpiry");
-    
-    if (savedUser && sessionExpiry) {
-      const expiryTime = parseInt(sessionExpiry, 10);
-      if (Date.now() < expiryTime) {
-        setUser(JSON.parse(savedUser));
-        // Extend session when user is active
-        updateSessionExpiry();
-      } else {
-        // Session expired, clear data
-        localStorage.removeItem("investmentUser");
-        localStorage.removeItem("sessionExpiry");
-      }
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
     }
     
     // Check for saved users in localStorage
@@ -112,26 +96,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     localStorage.setItem("investmentUsers", JSON.stringify(users));
   }, [users]);
-  
-  // Set session expiry time (1 hour from now)
-  const updateSessionExpiry = () => {
-    const expiryTime = Date.now() + SESSION_EXPIRY;
-    localStorage.setItem("sessionExpiry", expiryTime.toString());
-  };
-  
-  // Refresh user session
-  const refreshUserSession = () => {
-    if (user) {
-      // Find the latest user data
-      const currentUser = users.find(u => u.id === user.id);
-      if (currentUser) {
-        setUser(currentUser);
-        localStorage.setItem("investmentUser", JSON.stringify(currentUser));
-      }
-      // Extend session
-      updateSessionExpiry();
-    }
-  };
 
   const updateUserBalance = async (userId: string, amount: number): Promise<void> => {
     setIsLoading(true);
@@ -149,7 +113,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const updatedUser = { ...user, balance: Math.max(0, user.balance + amount) };
         setUser(updatedUser);
         localStorage.setItem("investmentUser", JSON.stringify(updatedUser));
-        updateSessionExpiry();
       }
       
       return;
@@ -207,7 +170,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setUser(updatedUser);
         localStorage.setItem("investmentUser", JSON.stringify(updatedUser));
-        updateSessionExpiry();
       }
       
       toast.success(`Referral commission of $${commission} added`);
@@ -241,7 +203,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       setUser(foundUser);
       localStorage.setItem("investmentUser", JSON.stringify(foundUser));
-      updateSessionExpiry();
       toast.success("Login successful");
     } catch (error: any) {
       toast.error(error.message || "Login failed");
@@ -252,26 +213,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (name: string, email: string, password: string, referralCode?: string) => {
-    if (isSubmitting) {
-      return; // Prevent duplicate submissions
-    }
-    
     setIsLoading(true);
-    setIsSubmitting(true);
     try {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
       
       // Check if user already exists
-      if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+      if (users.some(u => u.email === email)) {
         throw new Error("User already exists");
       }
       
-      // Generate a unique ID
-      const userId = `user-${Date.now()}`;
-      
       const newUser: User = {
-        id: userId,
+        id: String(users.length + 1),
         name,
         email,
         role: "user",
@@ -287,7 +240,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(newUser);
       localStorage.setItem("investmentUser", JSON.stringify(newUser));
       localStorage.setItem("investmentUsers", JSON.stringify(updatedUsers));
-      updateSessionExpiry();
       
       toast.success("Registration successful");
     } catch (error: any) {
@@ -295,14 +247,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw error;
     } finally {
       setIsLoading(false);
-      setIsSubmitting(false);
     }
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem("investmentUser");
-    localStorage.removeItem("sessionExpiry");
     toast.success("Logged out successfully");
   };
 
@@ -312,7 +262,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
       
-      const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      const foundUser = users.find(u => u.email === email);
       if (!foundUser) {
         throw new Error("Email not found");
       }
@@ -337,8 +287,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       resetPassword, 
       updateUserBalance,
       addReferralCommission,
-      users,
-      refreshUserSession
+      users
     }}>
       {children}
     </AuthContext.Provider>

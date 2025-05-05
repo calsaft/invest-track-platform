@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "./AuthContext";
@@ -13,7 +12,7 @@ export type Investment = {
   startDate: string;
   endDate: string;
   dailyReturn: number;
-  status: "active" | "completed" | "credited" | string;
+  status: "active" | "completed" | string;
   currentValue: number;
 };
 
@@ -44,17 +43,17 @@ export function InvestmentProvider({ children }: { children: React.ReactNode }) 
     localStorage.setItem("investments", JSON.stringify(investments));
   }, [investments]);
 
-  // Calculate daily growth for active investments and credit matured investments
+  // Calculate daily growth for active investments
   useEffect(() => {
     const interval = setInterval(() => {
       calculateInvestmentGrowth();
-    }, 1000 * 60 * 10); // Update every 10 minutes for better responsiveness
+    }, 1000 * 60 * 60); // Update every hour
     
     // Run once immediately
     calculateInvestmentGrowth();
     
     return () => clearInterval(interval);
-  }, [investments, user]);
+  }, [investments]);
 
   const calculateInvestmentGrowth = () => {
     // Update current value for all active investments
@@ -64,20 +63,11 @@ export function InvestmentProvider({ children }: { children: React.ReactNode }) 
         const now = new Date();
         const endDate = new Date(investment.endDate);
         
-        // Check if investment is mature but not yet credited
-        if (now >= endDate) {
-          // Only credit if not already credited
-          if (investment.status !== "credited") {
-            // Mark as completed and update user balance
-            if (user && investment.userId === user.id) {
-              updateUserBalance(user.id, investment.returnAmount);
-              toast.success(`Your investment of $${investment.amount} has matured and $${investment.returnAmount} has been credited to your account!`);
-            } else {
-              // Handle case where user is not the current logged in user (admin view)
-              const userId = investment.userId;
-              updateUserBalance(userId, investment.returnAmount);
-            }
-            return { ...investment, status: "credited", currentValue: investment.returnAmount };
+        // Don't update if investment is complete
+        if (now >= endDate && investment.status === "active") {
+          // Mark as completed and update user balance
+          if (user && investment.userId === user.id) {
+            updateUserBalance(user.id, investment.returnAmount);
           }
           return { ...investment, status: "completed", currentValue: investment.returnAmount };
         }
