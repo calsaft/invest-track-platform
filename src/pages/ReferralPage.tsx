@@ -11,6 +11,8 @@ import CopyButton from "@/components/CopyButton";
 export default function ReferralPage() {
   const { user } = useAuth();
   const [email, setEmail] = useState("");
+  
+  // Use window.location.origin to get the base URL dynamically
   const baseUrl = window.location.origin;
   const referralLink = user ? `${baseUrl}/register?ref=${user.id}` : "";
   
@@ -31,7 +33,7 @@ export default function ReferralPage() {
             <CardHeader>
               <CardTitle>Share & Earn</CardTitle>
               <CardDescription>
-                Invite friends and earn 20% commission on their investments
+                Invite friends and earn 20% commission on their deposits
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">

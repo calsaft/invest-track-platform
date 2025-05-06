@@ -19,54 +19,32 @@ type AdminContextType = {
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
-// Initial mock users from AuthContext
-const initialUsers: User[] = [
-  {
-    id: "1",
-    name: "Admin User",
-    email: "admin@example.com",
-    role: "admin",
-    balance: 10000,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    name: "Test User",
-    email: "user@example.com",
-    role: "user",
-    balance: 1000,
-    createdAt: new Date().toISOString(),
-  },
-];
-
 export function AdminProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
-  const [users, setUsers] = useState<User[]>(initialUsers);
+  const { user, users: authUsers } = useAuth();
+  const [users, setUsers] = useState<User[]>([]);
   const [walletAddresses, setWalletAddresses] = useState<WalletAddresses>({
     TRC20: "TRC20DefaultAddress123456789",
     BEP20: "BEP20DefaultAddress123456789",
   });
   const [isLoading, setIsLoading] = useState(false);
 
+  // Sync users from AuthContext
+  useEffect(() => {
+    if (authUsers && authUsers.length > 0) {
+      setUsers(authUsers);
+    }
+  }, [authUsers]);
+
   // Load data from localStorage on mount
   useEffect(() => {
-    const savedUsers = localStorage.getItem("adminUsers");
     const savedAddresses = localStorage.getItem("walletAddresses");
-    
-    if (savedUsers) {
-      setUsers(JSON.parse(savedUsers));
-    }
     
     if (savedAddresses) {
       setWalletAddresses(JSON.parse(savedAddresses));
     }
   }, []);
 
-  // Save data to localStorage on change
-  useEffect(() => {
-    localStorage.setItem("adminUsers", JSON.stringify(users));
-  }, [users]);
-
+  // Save wallet addresses to localStorage on change
   useEffect(() => {
     localStorage.setItem("walletAddresses", JSON.stringify(walletAddresses));
   }, [walletAddresses]);

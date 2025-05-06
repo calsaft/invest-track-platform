@@ -29,28 +29,33 @@ export default function Navbar() {
               <div className="hidden md:flex items-center space-x-4">
                 <Link 
                   to="/dashboard" 
-                  className={`nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}>
+                  className={`nav-link ${location.pathname === '/dashboard' ? 'text-primary font-medium' : ''}`}>
                   Dashboard
                 </Link>
                 <Link 
                   to="/deposit" 
-                  className={`nav-link ${location.pathname === '/deposit' ? 'active' : ''}`}>
+                  className={`nav-link ${location.pathname === '/deposit' ? 'text-primary font-medium' : ''}`}>
                   Deposit
                 </Link>
                 <Link 
                   to="/withdraw" 
-                  className={`nav-link ${location.pathname === '/withdraw' ? 'active' : ''}`}>
+                  className={`nav-link ${location.pathname === '/withdraw' ? 'text-primary font-medium' : ''}`}>
                   Withdraw
                 </Link>
                 <Link 
                   to="/transactions" 
-                  className={`nav-link ${location.pathname === '/transactions' ? 'active' : ''}`}>
+                  className={`nav-link ${location.pathname === '/transactions' ? 'text-primary font-medium' : ''}`}>
                   Transactions
+                </Link>
+                <Link 
+                  to="/referral" 
+                  className={`nav-link ${location.pathname === '/referral' ? 'text-primary font-medium' : ''}`}>
+                  Referral
                 </Link>
                 {user.role === "admin" && (
                   <Link 
                     to="/admin" 
-                    className={`nav-link ${location.pathname.startsWith('/admin') ? 'active' : ''}`}>
+                    className={`nav-link ${location.pathname.startsWith('/admin') ? 'text-primary font-medium' : ''}`}>
                     Admin
                   </Link>
                 )}

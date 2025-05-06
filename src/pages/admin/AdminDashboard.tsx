@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useAdmin } from "@/contexts/AdminContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useTransactions } from "@/contexts/TransactionContext";
 import TransactionBadge from "@/components/TransactionBadge";
 import { ArrowDown, ArrowUp, Plus, Users } from "lucide-react";
@@ -18,6 +19,11 @@ export default function AdminDashboard() {
   
   // Get recent transactions
   const recentTransactions = [...transactions]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
+
+  // Get recent users
+  const recentUsers = [...users]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
 
@@ -94,24 +100,21 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {users.length > 0 ? (
-                users
-                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                  .slice(0, 5)
-                  .map((user) => (
-                    <div key={user.id} className="flex justify-between items-center border-b border-border pb-2">
-                      <div>
-                        <div className="font-medium">{user.name}</div>
-                        <div className="text-sm text-muted-foreground">{user.email}</div>
-                      </div>
-                      <div className="text-right">
-                        <div>${user.balance.toFixed(2)}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(user.createdAt).toLocaleDateString()}
-                        </div>
+              {recentUsers.length > 0 ? (
+                recentUsers.map((user) => (
+                  <div key={user.id} className="flex justify-between items-center border-b border-border pb-2">
+                    <div>
+                      <div className="font-medium">{user.name}</div>
+                      <div className="text-sm text-muted-foreground">{user.email}</div>
+                    </div>
+                    <div className="text-right">
+                      <div>${user.balance.toFixed(2)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(user.createdAt).toLocaleDateString()}
                       </div>
                     </div>
-                  ))
+                  </div>
+                ))
               ) : (
                 <div className="text-center py-4 text-muted-foreground">No users found</div>
               )}

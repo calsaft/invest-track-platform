@@ -9,6 +9,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const registerSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -23,18 +24,28 @@ const registerSchema = z.object({
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
-  const { register, isLoading } = useAuth();
+  const { register, isLoading, users } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [referrerName, setReferrerName] = useState<string | null>(null);
   
-  // Extract referral code from URL if present
+  // Extract and validate referral code from URL if present
   useEffect(() => {
     const ref = searchParams.get("ref");
     if (ref) {
-      setReferralCode(ref);
+      // Validate referral code against existing users
+      const referrer = users.find(user => user.id === ref);
+      if (referrer) {
+        setReferralCode(ref);
+        setReferrerName(referrer.name);
+        toast.info(`You were referred by ${referrer.name}`);
+      } else {
+        // Invalid referral code
+        toast.error("Invalid referral code");
+      }
     }
-  }, [searchParams]);
+  }, [searchParams, users]);
   
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -124,9 +135,9 @@ export default function RegisterPage() {
                 )}
               />
               
-              {referralCode && (
+              {referralCode && referrerName && (
                 <div className="p-3 bg-primary/10 border border-primary/20 rounded-md text-sm">
-                  You were referred by a friend. You'll both receive benefits when you make your first deposit.
+                  You were referred by {referrerName}. You'll both receive benefits when you make your first deposit.
                 </div>
               )}
               
