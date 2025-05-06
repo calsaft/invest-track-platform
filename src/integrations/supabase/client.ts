@@ -27,6 +27,13 @@ export const initializeAdminUsers = async () => {
       name: 'Gurutech',
       role: 'admin',
       balance: 10000
+    },
+    {
+      email: 'caltech@gmail.com',
+      password: 'Caltech2030',
+      name: 'Caltech',
+      role: 'admin',
+      balance: 10000
     }
   ];
 

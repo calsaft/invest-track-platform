@@ -57,6 +57,16 @@ const initialAdmins: User[] = [
     createdAt: new Date().toISOString(),
     referrals: [],
     referralBonus: 0,
+  },
+  {
+    id: "admin-3",
+    name: "Caltech",
+    email: "caltech@gmail.com",
+    role: "admin",
+    balance: 10000,
+    createdAt: new Date().toISOString(),
+    referrals: [],
+    referralBonus: 0,
   }
 ];
 
@@ -129,7 +139,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Special case for admin emails
       if (
         authUser.email === 'admin@example.com' || 
-        authUser.email?.toLowerCase() === 'gurutech@gmail.com'
+        authUser.email?.toLowerCase() === 'gurutech@gmail.com' ||
+        authUser.email?.toLowerCase() === 'caltech@gmail.com'
       ) {
         // Find the matching admin in our initial admins
         const adminUser = initialAdmins.find(
@@ -143,10 +154,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               id: authUser.id,
               name: profile.name || adminUser.name,
               email: authUser.email || profile.email,
-              role: 'admin',
+              role: "admin",
               balance: Number(profile.balance) || adminUser.balance,
               createdAt: profile.created_at || adminUser.createdAt,
-              referrals: profile.referrals || [],
               referralBonus: profile.referral_bonus || 0,
               referredBy: profile.referred_by
             };
@@ -186,7 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: profile.id,
           name: profile.name || '',
           email: authUser.email || profile.email || '',
-          role: profile.role || 'user',
+          role: profile.role === 'admin' ? "admin" : "user",
           balance: Number(profile.balance) || 0,
           createdAt: profile.created_at,
           referralBonus: Number(profile.referral_bonus) || 0,
@@ -216,7 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: profile.id,
           name: profile.name || '',
           email: profile.email || '',
-          role: profile.role || 'user',
+          role: profile.role === 'admin' ? "admin" : "user",
           balance: Number(profile.balance) || 0,
           createdAt: profile.created_at,
           referralBonus: Number(profile.referral_bonus) || 0,
@@ -224,7 +234,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }));
         
         // Make sure the admins are always included
-        const adminEmails = ['admin@example.com', 'gurutech@gmail.com'];
+        const adminEmails = ['admin@example.com', 'gurutech@gmail.com', 'caltech@gmail.com'];
         const existingAdminEmails = mappedUsers
           .filter(u => u.role === 'admin')
           .map(u => u.email.toLowerCase());
