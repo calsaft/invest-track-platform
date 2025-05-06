@@ -81,12 +81,19 @@ export default function Navbar() {
                 {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </Button>
               
-              <Link to="/login">
-                <Button variant="outline" className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  <span>Sign In</span>
-                </Button>
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link to="/login">
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    <span>Sign In</span>
+                  </Button>
+                </Link>
+                <Link to="/register">
+                  <Button variant="default" className="hidden sm:flex items-center">
+                    Register
+                  </Button>
+                </Link>
+              </div>
             </>
           )}
         </div>

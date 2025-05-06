@@ -1,6 +1,8 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "./AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export type Investment = {
   id: string;
@@ -30,18 +32,56 @@ export function InvestmentProvider({ children }: { children: React.ReactNode }) 
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Load investments from localStorage on mount
+  // Load investments from Supabase on mount and when user changes
   useEffect(() => {
-    const savedInvestments = localStorage.getItem("investments");
-    if (savedInvestments) {
-      setInvestments(JSON.parse(savedInvestments));
+    if (user) {
+      fetchInvestments();
+    } else {
+      setInvestments([]);
     }
-  }, []);
+  }, [user]);
 
-  // Save investments to localStorage on change
-  useEffect(() => {
-    localStorage.setItem("investments", JSON.stringify(investments));
-  }, [investments]);
+  // Fetch investments from Supabase
+  const fetchInvestments = async () => {
+    try {
+      setIsLoading(true);
+      
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('investments')
+        .select('*')
+        .eq('user_id', user.id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        // Map Supabase data to Investment type
+        const mappedInvestments: Investment[] = data.map(item => ({
+          id: item.id,
+          userId: item.user_id,
+          planId: item.plan_id,
+          amount: Number(item.amount),
+          returnAmount: Number(item.return_amount),
+          duration: item.duration,
+          startDate: item.start_date,
+          endDate: item.end_date,
+          dailyReturn: Number(item.daily_return),
+          status: item.status,
+          currentValue: Number(item.current_value)
+        }));
+        
+        setInvestments(mappedInvestments);
+      }
+    } catch (error: any) {
+      console.error('Error fetching investments:', error);
+      toast.error('Failed to load investments');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Calculate daily growth for active investments
   useEffect(() => {
@@ -50,44 +90,68 @@ export function InvestmentProvider({ children }: { children: React.ReactNode }) 
     }, 1000 * 60 * 60); // Update every hour
     
     // Run once immediately
-    calculateInvestmentGrowth();
+    if (user) {
+      calculateInvestmentGrowth();
+    }
     
     return () => clearInterval(interval);
-  }, [investments]);
+  }, [investments, user]);
 
-  const calculateInvestmentGrowth = () => {
-    // Update current value for all active investments
-    const updatedInvestments = investments.map(investment => {
-      if (investment.status === "active") {
-        const startDate = new Date(investment.startDate);
-        const now = new Date();
-        const endDate = new Date(investment.endDate);
-        
-        // Don't update if investment is complete
-        if (now >= endDate && investment.status === "active") {
-          // Mark as completed and update user balance
-          if (user && investment.userId === user.id) {
-            updateUserBalance(user.id, investment.returnAmount);
-          }
-          return { ...investment, status: "completed", currentValue: investment.returnAmount };
-        }
-        
-        // Calculate elapsed days (fractional)
-        const elapsedMs = now.getTime() - startDate.getTime();
-        const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
-        
-        // Calculate current value based on daily growth
-        const currentValue = Math.min(
-          investment.amount + (elapsedDays * investment.dailyReturn),
-          investment.returnAmount
-        );
-        
-        return { ...investment, currentValue };
-      }
-      return investment;
-    });
+  const calculateInvestmentGrowth = async () => {
+    if (!user) return;
     
-    setInvestments(updatedInvestments);
+    try {
+      // Update current value for all active investments
+      const updatedInvestments = await Promise.all(investments.map(async (investment) => {
+        if (investment.status === "active") {
+          const startDate = new Date(investment.startDate);
+          const now = new Date();
+          const endDate = new Date(investment.endDate);
+          
+          // Don't update if investment is complete
+          if (now >= endDate && investment.status === "active") {
+            // Mark as completed and update user balance
+            if (user && investment.userId === user.id) {
+              await updateUserBalance(user.id, investment.returnAmount);
+            }
+            
+            // Update investment status in Supabase
+            await supabase
+              .from('investments')
+              .update({ 
+                status: 'completed',
+                current_value: investment.returnAmount
+              })
+              .eq('id', investment.id);
+              
+            return { ...investment, status: "completed", currentValue: investment.returnAmount };
+          }
+          
+          // Calculate elapsed days (fractional)
+          const elapsedMs = now.getTime() - startDate.getTime();
+          const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
+          
+          // Calculate current value based on daily growth
+          const currentValue = Math.min(
+            investment.amount + (elapsedDays * investment.dailyReturn),
+            investment.returnAmount
+          );
+          
+          // Update current value in Supabase
+          await supabase
+            .from('investments')
+            .update({ current_value: currentValue })
+            .eq('id', investment.id);
+            
+          return { ...investment, currentValue };
+        }
+        return investment;
+      }));
+      
+      setInvestments(updatedInvestments);
+    } catch (error) {
+      console.error('Error calculating investment growth:', error);
+    }
   };
 
   const createInvestment = async (planId: string, amount: number, duration: number) => {
@@ -108,22 +172,49 @@ export function InvestmentProvider({ children }: { children: React.ReactNode }) 
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + duration);
       
-      const newInvestment: Investment = {
-        id: `inv-${Date.now()}`,
-        userId: user.id,
-        planId,
-        amount,
-        returnAmount,
-        duration,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        status: "active",
-        dailyReturn,
-        currentValue: amount, // Starts at the investment amount
-      };
+      // Create new investment in Supabase
+      const { data, error } = await supabase
+        .from('investments')
+        .insert({
+          user_id: user.id,
+          plan_id: planId,
+          amount: amount,
+          return_amount: returnAmount,
+          duration: duration,
+          start_date: startDate.toISOString(),
+          end_date: endDate.toISOString(),
+          status: 'active',
+          daily_return: dailyReturn,
+          current_value: amount // Starts at the investment amount
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (!data) {
+        throw new Error("Failed to create investment");
+      }
       
       // Deduct from user's balance
       await updateUserBalance(user.id, -amount);
+      
+      // Map Supabase data to Investment type
+      const newInvestment: Investment = {
+        id: data.id,
+        userId: data.user_id,
+        planId: data.plan_id,
+        amount: Number(data.amount),
+        returnAmount: Number(data.return_amount),
+        duration: data.duration,
+        startDate: data.start_date,
+        endDate: data.end_date,
+        dailyReturn: Number(data.daily_return),
+        status: data.status,
+        currentValue: Number(data.current_value)
+      };
       
       setInvestments([...investments, newInvestment]);
       toast.success("Investment created successfully");
