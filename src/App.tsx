@@ -9,6 +9,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { TransactionProvider } from "@/contexts/TransactionContext";
 import { AdminProvider } from "@/contexts/AdminContext";
 import { InvestmentProvider } from "@/contexts/InvestmentContext";
+import { useEffect } from "react";
+import { checkSupabaseConnection, initializeAdminUsers } from "@/integrations/supabase/client";
 
 import Navbar from "@/components/Navbar";
 import MobileNav from "@/components/MobileNav";
@@ -33,7 +35,34 @@ import AdminSettings from "./pages/admin/AdminSettings";
 
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      retryDelay: 1000,
+      staleTime: 30000
+    }
+  }
+});
+
+// Component to initialize backend services
+const InitServices = () => {
+  useEffect(() => {
+    const init = async () => {
+      // Check connection first
+      const isConnected = await checkSupabaseConnection();
+      
+      if (isConnected) {
+        // Initialize admin users after successful connection
+        await initializeAdminUsers();
+      }
+    };
+    
+    init();
+  }, []);
+  
+  return null;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -43,6 +72,7 @@ const App = () => (
           <InvestmentProvider>
             <AdminProvider>
               <TooltipProvider>
+                <InitServices />
                 <Toaster />
                 <Sonner />
                 <BrowserRouter>
