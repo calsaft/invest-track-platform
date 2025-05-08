@@ -1,10 +1,28 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Shield, TrendingUp, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import { checkSupabaseConnection, setupDatabaseTables } from "@/integrations/supabase/client";
 
 export default function LandingPage() {
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        // Check connection and database tables
+        const isConnected = await checkSupabaseConnection();
+        if (isConnected) {
+          await setupDatabaseTables();
+        }
+      } catch (error) {
+        console.error("Error checking Supabase connection:", error);
+      }
+    };
+    
+    checkConnection();
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       <main>

@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,36 +8,16 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { TransactionProvider } from "@/contexts/TransactionContext";
 import { AdminProvider } from "@/contexts/AdminContext";
 import { InvestmentProvider } from "@/contexts/InvestmentContext";
-import { useEffect } from "react";
-import { checkSupabaseConnection, initializeAdminUsers } from "@/integrations/supabase/client";
-
-import Navbar from "@/components/Navbar";
-import MobileNav from "@/components/MobileNav";
-import ProtectedRoute from "@/components/ProtectedRoute";
-
-import LandingPage from "./pages/LandingPage";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import Dashboard from "./pages/Dashboard";
-import DepositPage from "./pages/DepositPage";
-import WithdrawPage from "./pages/WithdrawPage";
-import TransactionsPage from "./pages/TransactionsPage";
-import PlansPage from "./pages/PlansPage";
-import ReferralPage from "./pages/ReferralPage";
-
-import AdminLayout from "./pages/admin/AdminLayout";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminUsers from "./pages/admin/AdminUsers";
-import AdminAddUser from "./pages/admin/AdminAddUser";
-import AdminTransactions from "./pages/admin/AdminTransactions";
-import AdminSettings from "./pages/admin/AdminSettings";
-
-import NotFound from "./pages/NotFound";
+import { useEffect, useState } from "react";
+import { checkSupabaseConnection, initializeAdminUsers, setupDatabaseTables } from "@/integrations/supabase/client";
+import { checkDatabaseInitialization } from "@/utils/database-init";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: 2,
       retryDelay: 1000,
       staleTime: 30000
     }
@@ -47,19 +26,50 @@ const queryClient = new QueryClient({
 
 // Component to initialize backend services
 const InitServices = () => {
+  const [isDbInitialized, setIsDbInitialized] = useState<boolean | null>(null);
+  
   useEffect(() => {
     const init = async () => {
-      // Check connection first
-      const isConnected = await checkSupabaseConnection();
-      
-      if (isConnected) {
-        // Initialize admin users after successful connection
-        await initializeAdminUsers();
+      try {
+        // Check connection first
+        const isConnected = await checkSupabaseConnection();
+        
+        if (isConnected) {
+          // Check if database is properly initialized
+          const isInitialized = await checkDatabaseInitialization();
+          setIsDbInitialized(isInitialized);
+          
+          // Initialize admin users after successful connection
+          if (isInitialized) {
+            await setupDatabaseTables();
+            await initializeAdminUsers();
+          }
+        } else {
+          setIsDbInitialized(false);
+        }
+      } catch (error) {
+        console.error("Error during service initialization:", error);
+        setIsDbInitialized(false);
       }
     };
     
     init();
   }, []);
+  
+  // If initialization check has completed and failed, show a warning
+  if (isDbInitialized === false) {
+    return (
+      <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md">
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Database Connection Issue</AlertTitle>
+          <AlertDescription>
+            There was a problem connecting to the database. Some features may be unavailable.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
   
   return null;
 };

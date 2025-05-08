@@ -18,6 +18,14 @@ export const supabase = createClient<Database>(
       persistSession: true,
       autoRefreshToken: true,
       storage: localStorage
+    },
+    global: {
+      headers: {
+        'x-client-info': 'investtrack-web'
+      }
+    },
+    db: {
+      schema: 'public'
     }
   }
 );
@@ -61,6 +69,11 @@ export const initializeAdminUsers = async () => {
           .maybeSingle();
           
         if (profileError) {
+          if (profileError.code === '42501') {
+            console.warn(`Permission denied accessing profiles table. This may be expected if the table doesn't exist yet.`);
+            toast.warning("Database setup in progress. Please try again in a moment.");
+            return;
+          }
           console.error(`Error checking profile for ${admin.email}:`, profileError);
           continue;
         }
@@ -134,15 +147,45 @@ export const checkSupabaseConnection = async () => {
     const { data, error } = await supabase.from('profiles').select('id').limit(1);
     
     if (error) {
+      // Handle specific error codes
+      if (error.code === '42501') {
+        console.warn("Permission denied error. This may be normal if database setup is still in progress.");
+        toast.warning("Database setup in progress. Tables may be initializing. Please try again in a moment.");
+        return false;
+      }
+      
       console.error("Supabase connection check failed:", error);
+      toast.error(`Database connection issue: ${error.message}`);
       return false;
     }
     
     console.log("Supabase connection successful");
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to connect to Supabase:", error);
     toast.error("Failed to connect to the database. Please check your internet connection.");
     return false;
   }
 };
+
+// Add a helper function to set up database tables if they don't exist
+export const setupDatabaseTables = async () => {
+  try {
+    console.log("Checking if database tables need to be created...");
+    
+    // Check if profiles table exists by making a query
+    const { error: profilesError } = await supabase.from('profiles').select('id').limit(1);
+    
+    if (profilesError && profilesError.code === '42P01') { // 42P01 = table does not exist
+      toast.error("Database tables not found. Please contact support for database initialization.");
+      console.error("profiles table does not exist, database needs to be initialized");
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error checking database tables:", error);
+    return false;
+  }
+};
+
