@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,6 +14,27 @@ import { checkSupabaseConnection, initializeAdminUsers, setupDatabaseTables } fr
 import { checkDatabaseInitialization } from "@/utils/database-init";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
+
+// Import all components used in routes
+import Navbar from "@/components/Navbar";
+import MobileNav from "@/components/MobileNav";
+import LandingPage from "@/pages/LandingPage";
+import LoginPage from "@/pages/LoginPage";
+import RegisterPage from "@/pages/RegisterPage";
+import Dashboard from "@/pages/Dashboard";
+import DepositPage from "@/pages/DepositPage";
+import WithdrawPage from "@/pages/WithdrawPage";
+import TransactionsPage from "@/pages/TransactionsPage";
+import PlansPage from "@/pages/PlansPage";
+import ReferralPage from "@/pages/ReferralPage";
+import NotFound from "@/pages/NotFound";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import AdminLayout from "@/pages/admin/AdminLayout";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AdminUsers from "@/pages/admin/AdminUsers";
+import AdminAddUser from "@/pages/admin/AdminAddUser";
+import AdminTransactions from "@/pages/admin/AdminTransactions";
+import AdminSettings from "@/pages/admin/AdminSettings";
 
 const queryClient = new QueryClient({
   defaultOptions: {
